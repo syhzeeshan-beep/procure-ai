@@ -1,14 +1,13 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import random
 from datetime import datetime, timedelta
 
 # Page configuration
 st.set_page_config(
     page_title="ProcureAI - Commercial Procurement Assistant",
     page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # Custom CSS for professional appearance
@@ -21,12 +20,6 @@ st.markdown("""
         margin-bottom: 2rem;
         font-weight: bold;
     }
-    .sub-header {
-        font-size: 1.5rem;
-        color: #2e86ab;
-        margin-bottom: 1rem;
-        font-weight: 600;
-    }
     .metric-card {
         background-color: #f0f2f6;
         padding: 1.5rem;
@@ -34,365 +27,247 @@ st.markdown("""
         border-left: 5px solid #1f77b4;
         margin-bottom: 1rem;
     }
-    .prediction-positive {
-        color: #00d154;
-        font-weight: bold;
-    }
-    .prediction-negative {
-        color: #ff4b4b;
-        font-weight: bold;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-class AdvancedProcurementAssistant:
+class ProcurementAI:
     def __init__(self):
-        self.supplier_data = self.generate_supplier_data()
-        self.price_history = self.generate_price_history()
-        self.demand_patterns = self.generate_demand_patterns()
+        self.suppliers = self.generate_suppliers()
+        self.price_data = self.generate_price_data()
     
-    def generate_supplier_data(self):
+    def generate_suppliers(self):
         suppliers = []
-        categories = ['Electronics', 'Raw Materials', 'Packaging', 'Logistics', 'Office Supplies']
-        risk_levels = ['Low', 'Medium', 'High']
-        
-        for i in range(50):
+        for i in range(30):
             suppliers.append({
                 'id': f'SUP{i+1:03d}',
                 'name': f'Supplier {i+1}',
-                'category': np.random.choice(categories),
-                'reliability_score': np.random.uniform(3.0, 5.0),
-                'delivery_time_days': np.random.randint(1, 30),
-                'risk_level': np.random.choice(risk_levels, p=[0.6, 0.3, 0.1]),
-                'cost_score': np.random.uniform(1.0, 5.0),
-                'last_audit_date': datetime.now() - timedelta(days=np.random.randint(1, 365))
+                'category': random.choice(['Electronics', 'Materials', 'Logistics', 'Services']),
+                'rating': round(random.uniform(3.0, 5.0), 1),
+                'delivery_days': random.randint(2, 15),
+                'risk': random.choice(['Low', 'Medium', 'High']),
+                'last_order': datetime.now() - timedelta(days=random.randint(1, 180))
             })
         return pd.DataFrame(suppliers)
     
-    def generate_price_history(self):
-        dates = pd.date_range(start='2023-01-01', end=datetime.now(), freq='M')
-        products = ['Laptop', 'Steel', 'Plastic', 'Cardboard', 'Shipping']
-        
+    def generate_price_data(self):
+        products = ['Laptop', 'Steel', 'Plastic', 'Shipping', 'Packaging']
         data = []
-        for date in dates:
-            for product in products:
-                base_price = np.random.uniform(100, 1000)
-                trend = np.random.uniform(-0.1, 0.1)
+        for product in products:
+            base_price = random.uniform(50, 500)
+            for month in range(12):
                 data.append({
-                    'date': date,
+                    'month': month + 1,
                     'product': product,
-                    'price': base_price * (1 + trend * ((date - dates[0]).days / 30)),
-                    'volume': np.random.randint(100, 1000)
+                    'price': base_price * (1 + random.uniform(-0.2, 0.2)),
+                    'demand': random.randint(100, 1000)
                 })
         return pd.DataFrame(data)
     
-    def generate_demand_patterns(self):
-        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        products = ['Laptop', 'Steel', 'Plastic', 'Cardboard', 'Shipping']
+    def predict_prices(self, product, months=6):
+        product_data = self.price_data[self.price_data['product'] == product]
+        if len(product_data) == 0:
+            return []
         
-        data = []
-        for month in months:
-            for product in products:
-                seasonal_factor = 1 + 0.3 * np.sin(list(months).index(month) * np.pi / 6)
-                data.append({
-                    'month': month,
-                    'product': product,
-                    'demand': np.random.randint(500, 2000) * seasonal_factor,
-                    'forecast_accuracy': np.random.uniform(0.8, 0.95)
-                })
-        return pd.DataFrame(data)
-    
-    def predict_price_trends(self, product, months=6):
-        """AI-powered price trend prediction"""
-        current_data = self.price_history[self.price_history['product'] == product]
-        if len(current_data) == 0:
-            return None
-        
-        # Simple trend analysis
-        recent_prices = current_data.tail(3)['price'].values
-        if len(recent_prices) >= 2:
-            trend = (recent_prices[-1] - recent_prices[0]) / recent_prices[0]
-        else:
-            trend = 0
-        
-        # Add some randomness for simulation
-        trend += np.random.uniform(-0.15, 0.15)
+        current_price = product_data['price'].iloc[-1]
+        trend = random.uniform(-0.1, 0.1)
         
         predictions = []
-        current_price = recent_prices[-1] if len(recent_prices) > 0 else np.random.uniform(100, 1000)
-        
         for i in range(months):
-            predicted_price = current_price * (1 + trend * (i + 1))
+            future_price = current_price * (1 + trend * (i + 1))
             predictions.append({
-                'month': i + 1,
-                'predicted_price': predicted_price,
-                'confidence': max(0.7, 1 - abs(trend) * 2)
+                'month': f'Month {i+1}',
+                'price': future_price,
+                'trend': 'up' if future_price > current_price else 'down'
             })
-        
         return predictions
     
-    def calculate_optimal_order(self, product, budget, current_inventory):
-        """AI-powered optimal order calculation"""
-        predictions = self.predict_price_trends(product, 3)
+    def find_optimal_order(self, product, budget, current_stock):
+        predictions = self.predict_prices(product, 3)
         if not predictions:
             return None
         
-        # Simple optimization logic
-        predicted_prices = [p['predicted_price'] for p in predictions]
-        best_month = predicted_prices.index(min(predicted_prices))
+        best_price = min(p['price'] for p in predictions)
+        best_month = [i for i, p in enumerate(predictions) if p['price'] == best_price][0] + 1
         
-        optimal_quantity = min(budget / predicted_prices[best_month], 
-                             current_inventory * 2)
+        max_order = budget / best_price
+        optimal_qty = min(max_order, current_stock * 1.5)
         
         return {
-            'optimal_quantity': optimal_quantity,
-            'best_month': best_month + 1,
-            'predicted_price': predicted_prices[best_month],
-            'total_cost': optimal_quantity * predicted_prices[best_month],
-            'savings_potential': (max(predicted_prices) - min(predicted_prices)) * optimal_quantity
+            'quantity': int(optimal_qty),
+            'month': best_month,
+            'unit_price': best_price,
+            'total_cost': optimal_qty * best_price,
+            'savings': (predictions[0]['price'] - best_price) * optimal_qty
         }
 
 def main():
-    # Initialize the procurement assistant
-    proc_assistant = AdvancedProcurementAssistant()
+    ai = ProcurementAI()
     
-    # Header
     st.markdown('<div class="main-header">🚀 ProcureAI</div>', unsafe_allow_html=True)
-    st.markdown('<div style="text-align: center; font-size: 1.2rem; color: #666; margin-bottom: 3rem;">Commercial AI Procurement Assistant</div>', unsafe_allow_html=True)
+    st.markdown('**Commercial AI Procurement Assistant**')
     
-    # Sidebar
-    with st.sidebar:
-        st.title("Navigation")
-        
-        menu_option = st.radio(
-            "Select Module:",
-            ["📊 Dashboard", "🔮 Price Predictions", "📦 Optimal Orders", 
-             "🏭 Supplier Analysis", "📈 Demand Forecasting"]
-        )
-        
-        st.markdown("---")
-        st.subheader("Quick Actions")
-        if st.button("🔄 Refresh Data"):
-            st.rerun()
-        
-        st.markdown("---")
-        st.info("""
-        **ProcureAI** helps businesses:
-        - Predict price trends
-        - Optimize order quantities
-        - Analyze supplier performance
-        - Forecast demand patterns
-        """)
+    # Sidebar navigation
+    st.sidebar.title("AI Modules")
+    page = st.sidebar.radio("Navigate to:", 
+                           ["Dashboard", "Price Predictions", "Supplier Analytics", "Order Optimization"])
     
-    # Main content based on menu selection
-    if menu_option == "📊 Dashboard":
-        show_dashboard(proc_assistant)
-    elif menu_option == "🔮 Price Predictions":
-        show_price_predictions(proc_assistant)
-    elif menu_option == "📦 Optimal Orders":
-        show_optimal_orders(proc_assistant)
-    elif menu_option == "🏭 Supplier Analysis":
-        show_supplier_analysis(proc_assistant)
-    elif menu_option == "📈 Demand Forecasting":
-        show_demand_forecasting(proc_assistant)
+    if page == "Dashboard":
+        show_dashboard(ai)
+    elif page == "Price Predictions":
+        show_predictions(ai)
+    elif page == "Supplier Analytics":
+        show_suppliers(ai)
+    else:
+        show_optimization(ai)
 
-def show_dashboard(assistant):
-    st.markdown('<div class="sub-header">Procurement Dashboard</div>', unsafe_allow_html=True)
+def show_dashboard(ai):
+    st.header("📊 Procurement Dashboard")
     
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        avg_reliability = assistant.supplier_data['reliability_score'].mean()
-        st.metric("Avg Supplier Reliability", f"{avg_reliability:.1f}/5.0", "0.2")
+        avg_rating = ai.suppliers['rating'].mean()
+        st.metric("Avg Supplier Rating", f"{avg_rating:.1f}/5.0")
     
     with col2:
-        low_risk_suppliers = len(assistant.supplier_data[assistant.supplier_data['risk_level'] == 'Low'])
-        st.metric("Low Risk Suppliers", low_risk_suppliers, "5")
+        low_risk = len(ai.suppliers[ai.suppliers['risk'] == 'Low'])
+        st.metric("Low Risk Suppliers", low_risk)
     
     with col3:
-        avg_delivery = assistant.supplier_data['delivery_time_days'].mean()
-        st.metric("Avg Delivery Time", f"{avg_delivery:.1f} days", "-2.1")
+        avg_delivery = ai.suppliers['delivery_days'].mean()
+        st.metric("Avg Delivery Time", f"{avg_delivery:.1f} days")
     
     with col4:
-        total_products = len(assistant.price_history['product'].unique())
-        st.metric("Tracked Products", total_products, "2")
+        products = len(ai.price_data['product'].unique())
+        st.metric("Tracked Products", products)
     
     # Charts
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("Supplier Risk Distribution")
-        risk_counts = assistant.supplier_data['risk_level'].value_counts()
-        # Use Streamlit's native chart instead of plotly
+        risk_counts = ai.suppliers['risk'].value_counts()
         st.bar_chart(risk_counts)
     
     with col2:
-        st.subheader("Price Trends Overview")
-        recent_prices = assistant.price_history.groupby('product')['price'].last()
-        st.bar_chart(recent_prices)
+        st.subheader("Current Prices")
+        current_prices = ai.price_data.groupby('product')['price'].last()
+        st.bar_chart(current_prices)
     
-    # Recent alerts
-    st.subheader("AI Recommendations & Alerts")
+    # AI Recommendations
+    st.subheader("🤖 AI Recommendations")
     
-    alert_col1, alert_col2, alert_col3 = st.columns(3)
+    rec1, rec2, rec3 = st.columns(3)
     
-    with alert_col1:
-        with st.container():
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown("**📈 Price Drop Alert**")
-            st.markdown("Steel prices predicted to drop 8% in next 2 months")
-            st.markdown("</div>", unsafe_allow_html=True)
+    with rec1:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown("**💡 Cost Saving Opportunity**")
+        st.markdown("Bulk order plastics next month for 12% savings")
+        st.markdown("</div>", unsafe_allow_html=True)
     
-    with alert_col2:
-        with st.container():
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown("**⚠️ Supplier Risk**")
-            st.markdown("3 suppliers require immediate audit")
-            st.markdown("</div>", unsafe_allow_html=True)
+    with rec2:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown("**⚡ High-Performance Supplier**")
+        st.markdown("Supplier 15: 4.8 rating, 3-day delivery")
+        st.markdown("</div>", unsafe_allow_html=True)
     
-    with alert_col3:
-        with st.container():
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown("**💰 Cost Saving**")
-            st.markdown("Potential 15% savings on logistics")
-            st.markdown("</div>", unsafe_allow_html=True)
+    with rec3:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown("**📈 Market Trend**")
+        st.markdown("Electronics prices trending down 8% next quarter")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-def show_price_predictions(assistant):
-    st.markdown('<div class="sub-header">AI Price Trend Predictions</div>', unsafe_allow_html=True)
+def show_predictions(ai):
+    st.header("🔮 AI Price Predictions")
     
-    col1, col2 = st.columns([1, 2])
+    product = st.selectbox("Select Product", ai.price_data['product'].unique())
+    months = st.slider("Forecast Period (months)", 3, 12, 6)
     
-    with col1:
-        selected_product = st.selectbox(
-            "Select Product:",
-            assistant.price_history['product'].unique()
-        )
+    if st.button("Generate AI Prediction", type="primary"):
+        predictions = ai.predict_prices(product, months)
         
-        prediction_months = st.slider("Prediction Period (months):", 3, 12, 6)
-        
-        if st.button("Generate Price Forecast", type="primary"):
-            predictions = assistant.predict_price_trends(selected_product, prediction_months)
+        if predictions:
+            st.success("AI Analysis Complete!")
             
-            if predictions:
-                # Display predictions
-                st.subheader(f"Price Forecast for {selected_product}")
-                
-                for pred in predictions:
-                    trend_icon = "📈" if pred['predicted_price'] > predictions[0]['predicted_price'] else "📉"
-                    st.write(f"Month {pred['month']}: ${pred['predicted_price']:.2f} {trend_icon}")
-                
-                # Create prediction chart using native Streamlit
-                pred_df = pd.DataFrame(predictions)
-                st.line_chart(pred_df.set_index('month')['predicted_price'])
-    
-    with col2:
-        # Show historical price data
-        st.subheader("Historical Price Data")
-        product_data = assistant.price_history[assistant.price_history['product'] == selected_product]
-        st.line_chart(product_data.set_index('date')['price'])
+            # Show predictions
+            st.subheader(f"Price Forecast for {product}")
+            for pred in predictions:
+                trend_icon = "📈" if pred['trend'] == 'up' else "📉"
+                st.write(f"{pred['month']}: ${pred['price']:.2f} {trend_icon}")
+            
+            # Chart
+            pred_df = pd.DataFrame(predictions)
+            st.line_chart(pred_df.set_index('month')['price'])
+            
+            # Historical data
+            st.subheader("Historical Data")
+            hist_data = ai.price_data[ai.price_data['product'] == product]
+            st.line_chart(hist_data.set_index('month')['price'])
 
-def show_optimal_orders(assistant):
-    st.markdown('<div class="sub-header">AI-Powered Optimal Order Calculator</div>', unsafe_allow_html=True)
+def show_suppliers(ai):
+    st.header("🏭 Supplier Analytics")
     
+    # Filters
     col1, col2 = st.columns(2)
     
     with col1:
-        product = st.selectbox(
-            "Product:",
-            assistant.price_history['product'].unique(),
-            key="order_product"
-        )
-        
-        budget = st.number_input("Available Budget ($):", min_value=1000, max_value=1000000, value=50000)
-        
-        current_inventory = st.number_input("Current Inventory:", min_value=0, max_value=10000, value=100)
-        
-        if st.button("Calculate Optimal Order", type="primary"):
-            optimal_order = assistant.calculate_optimal_order(product, budget, current_inventory)
-            
-            if optimal_order:
-                st.success("🎯 AI Recommendation Generated!")
-                
-                st.metric("Optimal Order Quantity", f"{optimal_order['optimal_quantity']:.0f} units")
-                st.metric("Best Order Month", f"Month {optimal_order['best_month']}")
-                st.metric("Predicted Price", f"${optimal_order['predicted_price']:.2f}")
-                st.metric("Total Cost", f"${optimal_order['total_cost']:.2f}")
-                st.metric("Potential Savings", f"${optimal_order['savings_potential']:.2f}")
-
-def show_supplier_analysis(assistant):
-    st.markdown('<div class="sub-header">Supplier Performance Analysis</div>', unsafe_allow_html=True)
-    
-    # Supplier filters
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        min_reliability = st.slider("Minimum Reliability Score:", 1.0, 5.0, 3.0)
+        min_rating = st.slider("Minimum Rating", 3.0, 5.0, 4.0)
     
     with col2:
-        max_delivery = st.slider("Maximum Delivery Days:", 1, 30, 15)
-    
-    with col3:
-        risk_filter = st.multiselect(
-            "Risk Level:",
-            ['Low', 'Medium', 'High'],
-            default=['Low', 'Medium']
-        )
+        max_delivery = st.slider("Max Delivery Days", 2, 20, 10)
     
     # Filter suppliers
-    filtered_suppliers = assistant.supplier_data[
-        (assistant.supplier_data['reliability_score'] >= min_reliability) &
-        (assistant.supplier_data['delivery_time_days'] <= max_delivery) &
-        (assistant.supplier_data['risk_level'].isin(risk_filter))
+    filtered = ai.suppliers[
+        (ai.suppliers['rating'] >= min_rating) & 
+        (ai.suppliers['delivery_days'] <= max_delivery)
     ]
     
-    st.subheader(f"Filtered Suppliers ({len(filtered_suppliers)})")
+    st.subheader(f"Filtered Suppliers ({len(filtered)})")
+    st.dataframe(filtered, use_container_width=True)
     
-    # Display supplier table
-    st.dataframe(
-        filtered_suppliers[['id', 'name', 'category', 'reliability_score', 'delivery_time_days', 'risk_level']],
-        use_container_width=True
-    )
-    
-    # Supplier performance chart
+    # Analysis
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Supplier Reliability by Category")
-        category_avg = filtered_suppliers.groupby('category')['reliability_score'].mean()
+        st.subheader("Performance by Category")
+        category_avg = filtered.groupby('category')['rating'].mean()
         st.bar_chart(category_avg)
     
     with col2:
-        st.subheader("Delivery Time Distribution")
-        st.bar_chart(filtered_suppliers['delivery_time_days'].value_counts())
+        st.subheader("Risk Analysis")
+        risk_analysis = filtered['risk'].value_counts()
+        st.bar_chart(risk_analysis)
 
-def show_demand_forecasting(assistant):
-    st.markdown('<div class="sub-header">Demand Pattern Forecasting</div>', unsafe_allow_html=True)
-    
-    selected_product = st.selectbox(
-        "Select Product for Demand Analysis:",
-        assistant.demand_patterns['product'].unique(),
-        key="demand_product"
-    )
-    
-    product_demand = assistant.demand_patterns[assistant.demand_patterns['product'] == selected_product]
+def show_optimization(ai):
+    st.header("📦 Order Optimization")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader(f"Seasonal Demand Pattern - {selected_product}")
-        st.line_chart(product_demand.set_index('month')['demand'])
+        product = st.selectbox("Product:", ai.price_data['product'].unique(), key="opt_product")
+        budget = st.number_input("Budget ($):", 1000, 1000000, 50000)
+        inventory = st.number_input("Current Inventory:", 0, 10000, 100)
     
-    with col2:
-        accuracy = product_demand['forecast_accuracy'].mean()
-        st.metric("Average Forecast Accuracy", f"{accuracy*100:.1f}%")
+    if st.button("Calculate Optimal Order", type="primary"):
+        result = ai.find_optimal_order(product, budget, inventory)
         
-        avg_demand = product_demand['demand'].mean()
-        st.metric("Average Monthly Demand", f"{avg_demand:.0f} units")
-        
-        peak_month = product_demand.loc[product_demand['demand'].idxmax(), 'month']
-        st.metric("Peak Demand Month", peak_month)
+        if result:
+            st.success("🎯 AI Recommendation Generated!")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Order Quantity", f"{result['quantity']} units")
+                st.metric("Best Timing", f"Month {result['month']}")
+            
+            with col2:
+                st.metric("Unit Price", f"${result['unit_price']:.2f}")
+                st.metric("Total Cost", f"${result['total_cost']:.0f}")
+            
+            with col3:
+                st.metric("Potential Savings", f"${result['savings']:.0f}")
+                st.metric("ROI", f"{(result['savings']/result['total_cost']*100):.1f}%")
 
 if __name__ == "__main__":
     main()

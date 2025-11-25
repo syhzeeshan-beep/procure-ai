@@ -293,7 +293,8 @@ def show_data_upload(ai):
             if uploaded_file.name.endswith('.csv'):
                 df = pd.read_csv(uploaded_file)
             else:
-                df = pd.read_excel(uploaded_file)
+                # For Excel files, use openpyxl engine
+                df = pd.read_excel(uploaded_file, engine='openpyxl')
             
             st.success(f"✅ File uploaded successfully! {len(df)} rows × {len(df.columns)} columns")
             
@@ -340,6 +341,49 @@ def show_data_upload(ai):
                 with quality_col2:
                     st.metric("Data Types", len(df.dtypes.unique()))
                     st.metric("Memory Usage", f"{df.memory_usage(deep=True).sum() / 1024:.1f} KB")
+                
+                # Column information
+                st.subheader("🏷️ Column Information")
+                for col in df.columns:
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    with col1:
+                        st.write(f"**{col}**")
+                    with col2:
+                        st.write(f"Type: {df[col].dtype}, Unique: {df[col].nunique()}")
+                    with col3:
+                        missing_pct = (df[col].isnull().sum() / len(df)) * 100
+                        st.write(f"Missing: {missing_pct:.1f}%")
+                
+                # Download analysis report
+                st.subheader("📥 Download Analysis Report")
+                report_text = f"""
+ProcureAI Analysis Report
+Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+File: {uploaded_file.name}
+Records: {len(df)}
+
+KEY INSIGHTS:
+{chr(10).join(analysis['insights'])}
+
+RECOMMENDATIONS:
+{chr(10).join(analysis['recommendations'])}
+
+DATA QUALITY:
+- Missing Values: {sum(analysis['missing_values'].values())}
+- Duplicate Rows: {analysis['duplicate_rows']}
+- Columns: {len(df.columns)}
+                """
+                
+                st.download_button(
+                    label="Download Analysis Report",
+                    data=report_text,
+                    file_name=f"procureai_analysis_{datetime.now().strftime('%Y%m%d')}.txt",
+                    mime="text/plain"
+                )
+                
+        except Exception as e:
+            st.error(f"Error reading file: {str(e)}")
+            st.info("Please ensure your file is not corrupted and try again.")
                 
                 # Column information
                 st.subheader("🏷️ Column Information")
@@ -496,3 +540,4 @@ def show_optimization(ai):
 
 if __name__ == "__main__":
     main()
+

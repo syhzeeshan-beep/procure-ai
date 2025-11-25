@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import random
 from datetime import datetime, timedelta
+import io
 
 # Page configuration
 st.set_page_config(
@@ -27,6 +28,14 @@ st.markdown("""
         border-left: 5px solid #1f77b4;
         margin-bottom: 1rem;
     }
+    .upload-section {
+        background-color: #f8f9fa;
+        padding: 2rem;
+        border-radius: 10px;
+        border: 2px dashed #dee2e6;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -34,6 +43,7 @@ class ProcurementAI:
     def __init__(self):
         self.suppliers = self.generate_suppliers()
         self.price_data = self.generate_price_data()
+        self.uploaded_data = None
     
     def generate_suppliers(self):
         suppliers = []
@@ -99,6 +109,83 @@ class ProcurementAI:
             'total_cost': optimal_qty * best_price,
             'savings': (predictions[0]['price'] - best_price) * optimal_qty
         }
+    
+    def analyze_uploaded_data(self, df):
+        """AI analysis of uploaded Excel data"""
+        analysis = {}
+        
+        # Basic statistics
+        analysis['row_count'] = len(df)
+        analysis['column_count'] = len(df.columns)
+        analysis['columns'] = df.columns.tolist()
+        
+        # Data quality assessment
+        analysis['missing_values'] = df.isnull().sum().to_dict()
+        analysis['duplicate_rows'] = df.duplicated().sum()
+        
+        # Numeric analysis
+        numeric_cols = df.select_dtypes(include=['number']).columns
+        if len(numeric_cols) > 0:
+            analysis['numeric_stats'] = df[numeric_cols].describe().to_dict()
+        
+        # AI Insights
+        insights = []
+        
+        # Price analysis if price-related columns exist
+        price_cols = [col for col in df.columns if 'price' in col.lower() or 'cost' in col.lower()]
+        if price_cols:
+            price_col = price_cols[0]
+            avg_price = df[price_col].mean()
+            price_std = df[price_col].std()
+            insights.append(f"💰 Average {price_col}: ${avg_price:.2f}")
+            if price_std / avg_price > 0.3:
+                insights.append("⚠️ High price variability detected - consider bulk purchasing")
+            else:
+                insights.append("✅ Stable pricing detected - good for budgeting")
+        
+        # Quantity analysis
+        qty_cols = [col for col in df.columns if 'qty' in col.lower() or 'quantity' in col.lower()]
+        if qty_cols:
+            qty_col = qty_cols[0]
+            total_qty = df[qty_col].sum()
+            insights.append(f"📦 Total {qty_col}: {total_qty:,} units")
+        
+        # Date analysis
+        date_cols = [col for col in df.columns if 'date' in col.lower()]
+        if date_cols:
+            date_col = date_cols[0]
+            try:
+                df[date_col] = pd.to_datetime(df[date_col])
+                date_range = df[date_col].max() - df[date_col].min()
+                insights.append(f"📅 Data covers {date_range.days} days")
+            except:
+                pass
+        
+        analysis['insights'] = insights
+        analysis['recommendations'] = self.generate_recommendations(df)
+        
+        return analysis
+    
+    def generate_recommendations(self, df):
+        """Generate AI-powered procurement recommendations"""
+        recommendations = []
+        
+        # Sample recommendations based on common procurement patterns
+        recommendations.append("🤖 **AI Suggestion**: Consider consolidating orders with top 3 suppliers for volume discounts")
+        recommendations.append("📊 **Data Insight**: Review seasonal purchasing patterns for better inventory planning")
+        recommendations.append("💡 **Optimization**: Implement just-in-time ordering for high-value items")
+        recommendations.append("🔍 **Risk Management**: Diversify supplier base for critical components")
+        recommendations.append("💰 **Cost Saving**: Negotiate long-term contracts with consistent suppliers")
+        
+        # Add data-specific recommendations
+        if len(df) > 1000:
+            recommendations.append("📈 **Scale Opportunity**: Large dataset detected - consider advanced analytics")
+        
+        numeric_cols = df.select_dtypes(include=['number']).columns
+        if len(numeric_cols) >= 3:
+            recommendations.append("🎯 **Advanced Analysis**: Multiple numeric columns available for predictive modeling")
+        
+        return recommendations
 
 def main():
     ai = ProcurementAI()
@@ -109,10 +196,13 @@ def main():
     # Sidebar navigation
     st.sidebar.title("AI Modules")
     page = st.sidebar.radio("Navigate to:", 
-                           ["Dashboard", "Price Predictions", "Supplier Analytics", "Order Optimization"])
+                           ["Dashboard", "Data Upload & Analysis", "Price Predictions", 
+                            "Supplier Analytics", "Order Optimization"])
     
     if page == "Dashboard":
         show_dashboard(ai)
+    elif page == "Data Upload & Analysis":
+        show_data_upload(ai)
     elif page == "Price Predictions":
         show_predictions(ai)
     elif page == "Supplier Analytics":
@@ -141,6 +231,10 @@ def show_dashboard(ai):
     with col4:
         products = len(ai.price_data['product'].unique())
         st.metric("Tracked Products", products)
+    
+    # Upload status
+    if ai.uploaded_data is not None:
+        st.success(f"✅ Custom Data Loaded: {len(ai.uploaded_data)} records")
     
     # Charts
     col1, col2 = st.columns(2)
@@ -178,10 +272,129 @@ def show_dashboard(ai):
         st.markdown("Electronics prices trending down 8% next quarter")
         st.markdown("</div>", unsafe_allow_html=True)
 
+def show_data_upload(ai):
+    st.header("📁 Data Upload & AI Analysis")
+    
+    st.markdown('<div class="upload-section">', unsafe_allow_html=True)
+    st.subheader("Upload Your Procurement Data")
+    st.write("Upload Excel files (.xlsx, .xls) or CSV files for AI analysis")
+    st.write("Supported formats: Purchase orders, supplier lists, price history, inventory data")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    uploaded_file = st.file_uploader(
+        "Choose your procurement data file", 
+        type=['xlsx', 'xls', 'csv'],
+        help="Upload Excel or CSV files with your procurement data"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Read the file
+            if uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            
+            st.success(f"✅ File uploaded successfully! {len(df)} rows × {len(df.columns)} columns")
+            
+            # Show data preview
+            st.subheader("📋 Data Preview")
+            st.dataframe(df.head(10), use_container_width=True)
+            
+            # Show basic info
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Total Rows", len(df))
+            with col2:
+                st.metric("Total Columns", len(df.columns))
+            with col3:
+                st.metric("File Size", f"{uploaded_file.size / 1024:.1f} KB")
+            
+            # Run AI Analysis
+            if st.button("🤖 Run AI Analysis", type="primary"):
+                with st.spinner("AI is analyzing your data..."):
+                    analysis = ai.analyze_uploaded_data(df)
+                    ai.uploaded_data = df
+                
+                st.success("AI Analysis Complete!")
+                
+                # Display Insights
+                st.subheader("🔍 AI Insights")
+                for insight in analysis['insights']:
+                    st.info(insight)
+                
+                # Display Recommendations
+                st.subheader("🎯 AI Recommendations")
+                for recommendation in analysis['recommendations']:
+                    st.success(recommendation)
+                
+                # Data Quality
+                st.subheader("📊 Data Quality Report")
+                quality_col1, quality_col2 = st.columns(2)
+                
+                with quality_col1:
+                    st.metric("Missing Values", sum(analysis['missing_values'].values()))
+                    st.metric("Duplicate Rows", analysis['duplicate_rows'])
+                
+                with quality_col2:
+                    st.metric("Data Types", len(df.dtypes.unique()))
+                    st.metric("Memory Usage", f"{df.memory_usage(deep=True).sum() / 1024:.1f} KB")
+                
+                # Column information
+                st.subheader("🏷️ Column Information")
+                for col in df.columns:
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    with col1:
+                        st.write(f"**{col}**")
+                    with col2:
+                        st.write(f"Type: {df[col].dtype}, Unique: {df[col].nunique()}")
+                    with col3:
+                        missing_pct = (df[col].isnull().sum() / len(df)) * 100
+                        st.write(f"Missing: {missing_pct:.1f}%")
+                
+                # Download analysis report
+                st.subheader("📥 Download Analysis Report")
+                report_text = f"""
+ProcureAI Analysis Report
+Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+File: {uploaded_file.name}
+Records: {len(df)}
+
+KEY INSIGHTS:
+{chr(10).join(analysis['insights'])}
+
+RECOMMENDATIONS:
+{chr(10).join(analysis['recommendations'])}
+
+DATA QUALITY:
+- Missing Values: {sum(analysis['missing_values'].values())}
+- Duplicate Rows: {analysis['duplicate_rows']}
+- Columns: {len(df.columns)}
+                """
+                
+                st.download_button(
+                    label="Download Analysis Report",
+                    data=report_text,
+                    file_name=f"procureai_analysis_{datetime.now().strftime('%Y%m%d')}.txt",
+                    mime="text/plain"
+                )
+                
+        except Exception as e:
+            st.error(f"Error reading file: {str(e)}")
+            st.info("Please ensure your file is not corrupted and try again.")
+
 def show_predictions(ai):
     st.header("🔮 AI Price Predictions")
     
-    product = st.selectbox("Select Product", ai.price_data['product'].unique())
+    # Use uploaded data if available
+    if ai.uploaded_data is not None:
+        st.info("📊 Using your uploaded data for predictions")
+        product_options = ai.uploaded_data.select_dtypes(include=['object']).columns.tolist()
+    else:
+        product_options = ai.price_data['product'].unique()
+    
+    product = st.selectbox("Select Product", product_options)
     months = st.slider("Forecast Period (months)", 3, 12, 6)
     
     if st.button("Generate AI Prediction", type="primary"):
@@ -202,8 +415,14 @@ def show_predictions(ai):
             
             # Historical data
             st.subheader("Historical Data")
-            hist_data = ai.price_data[ai.price_data['product'] == product]
-            st.line_chart(hist_data.set_index('month')['price'])
+            if ai.uploaded_data is not None:
+                # Try to find numeric columns for historical data
+                numeric_cols = ai.uploaded_data.select_dtypes(include=['number']).columns
+                if len(numeric_cols) > 0:
+                    st.line_chart(ai.uploaded_data[numeric_cols[0]])
+            else:
+                hist_data = ai.price_data[ai.price_data['product'] == product]
+                st.line_chart(hist_data.set_index('month')['price'])
 
 def show_suppliers(ai):
     st.header("🏭 Supplier Analytics")
@@ -245,7 +464,13 @@ def show_optimization(ai):
     col1, col2 = st.columns(2)
     
     with col1:
-        product = st.selectbox("Product:", ai.price_data['product'].unique(), key="opt_product")
+        # Use uploaded data products if available
+        if ai.uploaded_data is not None:
+            product_options = ai.uploaded_data.select_dtypes(include=['object']).columns.tolist()
+        else:
+            product_options = ai.price_data['product'].unique()
+            
+        product = st.selectbox("Product:", product_options, key="opt_product")
         budget = st.number_input("Budget ($):", 1000, 1000000, 50000)
         inventory = st.number_input("Current Inventory:", 0, 10000, 100)
     
